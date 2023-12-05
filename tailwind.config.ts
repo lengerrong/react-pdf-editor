@@ -16,5 +16,14 @@ export default {
       },
     },
   },
-  plugins: []
+  plugins: [
+    function ({ addUtilities }) {
+      const newUtilities = {
+        '.text-75': {
+          'font-size': '75%',
+        },
+      };
+      addUtilities(newUtilities, ['responsive', 'hover']);
+    },
+  ]
 }
