@@ -23,6 +23,9 @@ npm install react-pdf-editor
 ```typescript
 import React from "react"
 import ReactDOM from "react-dom/client"
+
+// import styles of react-pdf-editor only once
+import "react-pdf-editor/dist/style.css"
 import PDFEditor from "react-pdf-editor"
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
