@@ -47,7 +47,6 @@ const usePrint = (
       
       @page {
         size: A4;
-        margin: 200mm !important;
       }
     
       @media all {
@@ -67,10 +66,6 @@ const usePrint = (
           position: absolute;
           top: 0px;
           left: 0px;
-          bottom: 100% !important;
-          right: 100% !important;
-          height: 100%;
-          width: 100%;
         }
         body * {
           visibility: visible !important;
