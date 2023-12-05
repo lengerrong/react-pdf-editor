@@ -1,10 +1,15 @@
 # React PDF Editor
 
-React PDF Editor is a React library built with Vite.
+React PDF Editor is a React library developed with Vite, leveraging the capabilities of [PDF.js](https://mozilla.github.io/pdf.js/) and [pdf-lib](https://github.com/Hopding/pdf-lib.git) for enhanced functionality.
 
-Normally PDF is used as a final publishing format. However PDF has an option to be used as an entry form.
+[PDF.js](https://mozilla.github.io/pdf.js/) ensures precise rendering of PDFs using the Canvas API. Typically, PDFs serve as final publishing formats, but they can also function as entry forms.
+However, when used as entry forms, the rendered pages by [PDF.js](https://mozilla.github.io/pdf.js/) limit user interaction.
 
-This library is designed for PDFs used as entry forms, allowing users to edit and save form fields within the PDF in any react application.
+Notably, users can interact with PDF forms when rendered by the browser's built-in PDF plugin extension. 
+However, relying on the browser extension introduces a drawback — your React app lacks a mechanism to collect the form data edited by users for further utilization within the application. 
+
+React PDF Editor addresses this limitation, providing a solution tailored for PDFs used as entry forms.
+It enables users to seamlessly edit and save form fields within the PDF, ensuring compatibility with any React application while overcoming the data collection challenge associated with browser extensions.
 
 ## Features
 
