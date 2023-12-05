@@ -18,11 +18,13 @@ import {
   DocumentInitParameters,
   TypedArray,
 } from "pdfjs-dist/types/src/display/api";
+import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PDFTextField } from 'pdf-lib';
 
 import ZoomOutIcon from "./icons/ZoomOutIcon";
 import ZoomInIcon from "./icons/ZoomInIcon";
 import PrintIcon from "./icons/PrintIcon";
 import usePrint from "./hooks/usePring";
+import SaveAsIcon from "./icons/SaveAsIcon";
 
 export interface PDFFormFields {
   [x: string]: string;
@@ -81,6 +83,16 @@ export interface PDFEditorProps {
    * issues when using the PDF.js library.
    */
   workerSrc?: string;
+  /**
+   * This callback is triggered when the user initiates a save action.
+   * If the onSave prop is not set, the save button will function similarly to the 'Save as' button in a browser's internal PDF extension.
+   * The default behavior is to trigger the browser's download functionality, allowing the user to save the PDF file to their local machine.
+   *
+   * @param pdfBytes A Uint8Array representing the binary data of the PDF file.
+   * @param formFields An object of type PDFFormFields containing information about the form fields within the PDF.
+   * @returns
+   */
+  onSave?: (pdfBytes: Uint8Array, formFields: PDFFormFields) => void;
 }
 
 const cdnworker = "https://unpkg.com/pdfjs-dist/build/pdf.worker.min.mjs";
@@ -88,13 +100,14 @@ GlobalWorkerOptions.workerSrc = cdnworker;
 
 export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
   (props, ref) => {
-    const { src, workerSrc } = props;
+    const { src, workerSrc, onSave } = props;
     const divRef = useRef<HTMLDivElement>(null);
     const [maxPageWidth, setMaxPageWidth] = useState(0);
     const [zoomLevel, setZoomLevel] = useState(6);
     const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy>();
     const [docReady, setDocReady] = useState(false);
     const [pages, setPages] = useState<PDFPageAndFormFields[]>();
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
       // use cdn pdf.worker.min.mjs if not set
@@ -260,29 +273,143 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
       };
     }, [resetViewScale]);
 
+    const getAllFieldsValue = () => {
+      const fieldElements = divRef?.current?.querySelectorAll("input, select");
+      return fieldElements ? Array.from(fieldElements).map(e => {
+        const field = e as HTMLInputElement;
+        const selectElement = (e as HTMLSelectElement);
+        let value = field.value;
+        switch (field.type) {
+          case "checkbox":
+            value = field.checked ? "On" : "Off";
+            break;
+          case "combobox":
+            value = selectElement.options[selectElement.selectedIndex].value;
+            break;
+          default:
+            break;
+        }
+        return {
+          [field.name]: value
+        } as PDFFormFields;
+      }).reduce((result, currentObject) => {
+        return { ...result, ...currentObject };
+      }, {}) : {};
+    }
+
     // expose formFields value
     useImperativeHandle(ref, () => ({
-      formFields: divRef.current?.querySelectorAll("input")
-        ? Array.from(divRef.current.querySelectorAll("input"))
-            .map(
-              (field) =>
-                ({
-                  [field.name]:
-                    field.type === "text"
-                      ? field.value
-                      : field.checked
-                      ? "On"
-                      : "Off",
-                } as PDFFormFields)
-            )
-            .reduce((result, currentObject) => {
-              return { ...result, ...currentObject };
-            }, {})
-        : {},
+      formFields: getAllFieldsValue(),
     }));
 
     // use react-print for the pdf print
     const onPrint = usePrint(divRef);
+
+    const downloadPDF = (data: Blob, fileName: string) => {
+      // Create a temporary anchor element
+      const downloadLink = document.createElement('a');
+      downloadLink.href = window.URL.createObjectURL(data);
+      downloadLink.download = fileName || "download.pdf";
+
+      // Append the anchor to the body and trigger a click
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+
+      // Clean up: Remove the anchor after the click event
+      document.body.removeChild(downloadLink);
+
+      // Release the blob URL
+      window.URL.revokeObjectURL(downloadLink.href);
+    };
+
+    const saveFileUsingFilePicker = async (data: Uint8Array, fileName: string) => {
+      try {
+        const blob = new Blob([data], { type: 'application/pdf' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { showSaveFilePicker } = window as any;
+        if (showSaveFilePicker) {
+          // Request a file handle using showSaveFilePicker
+          const fileHandle = await showSaveFilePicker({
+            suggestedName: fileName,
+            types: [
+              {
+                description: 'PDF Documents',
+                accept: {
+                  'application/pdf': ['.pdf'],
+                },
+              },
+            ],
+          });
+
+          // Create a writable stream from the file handle
+          const writable = await fileHandle.createWritable();
+
+          // Write the blob data to the stream
+          await writable.write(blob);
+
+          // Close the stream to finish writing
+          await writable.close();
+        } else {
+          downloadPDF(blob, fileName);
+        }
+      } catch (e: unknown) {
+        console.error(e);
+      }
+    };
+
+    const onSaveAs = async () => {
+      setIsSaving(true);
+      const originData = await pdfDoc?.getData();
+      if (originData) {
+        const libDoc = await PDFDocument.load(originData);
+        const form = libDoc.getForm();
+        form.getDropdown
+        const formFields = getAllFieldsValue();
+        if (form) {
+          for (const field of form.getFields()) {
+            const value = formFields[field.getName()];
+            if (field instanceof PDFTextField) {
+              (field as PDFTextField).setText(value);
+            } else if (field instanceof PDFCheckBox) {
+              if (value === "On") {
+                (field as PDFCheckBox).check();
+              } else {
+                (field as PDFCheckBox).uncheck();
+              }
+            } else if (field instanceof PDFDropdown) {
+              (field as PDFDropdown).select(value);
+            } else if (field instanceof PDFOptionList) {
+              // FIXME...not render the input elements for this part field yet
+              // TODO... handle multiple select, choice type in pdf.js
+            } else if (field instanceof PDFRadioGroup) {
+              // TODO... handle A set of radio buttons where users can select only one option from the group.
+              // Specifically, for a radio button in a radio group, the fieldFlags property of the field object may contain the RADIO flag.
+            }
+          }
+          const savedData = await libDoc.save();
+          if (onSave) {
+            onSave(savedData, formFields);
+          } else {
+            // default behavior, save to local machine
+            // Trigger the save-as dialog
+            let fileName = "download.pdf";
+            if (typeof src === "string") {
+              const url = (src as string);
+              if (url.lastIndexOf("/") >= 0) {
+                fileName = url.substring(url.lastIndexOf("/") + 1);
+              }
+            } else if (src instanceof URL) {
+              const url = src.href;
+              if (url.lastIndexOf("/") >= 0) {
+                fileName = url.substring(url.lastIndexOf("/") + 1);
+              }
+            }
+            await saveFileUsingFilePicker(savedData, fileName || "download.pdf");
+          }
+        }
+      }
+      setIsSaving(false);
+    }
 
     return (
       <div className="relative flex h-full max-h-[100rem] w-full flex-col overflow-auto">
@@ -312,6 +439,15 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
             type="button"
           >
             <PrintIcon className={"h-5 w-5 cursor-pointer"} />
+          </button>
+          <button
+            title="Save as"
+            className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
+            onClick={onSaveAs}
+            type="button"
+            disabled={isSaving}
+          >
+            <SaveAsIcon className={"h-5 w-5 cursor-pointer"} />
           </button>
         </div>
         <div

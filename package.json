@@ -1,7 +1,6 @@
 {
   "name": "react-pdf-editor",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "files": [
     "dist"
@@ -15,6 +14,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.0.269",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

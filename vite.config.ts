@@ -23,7 +23,7 @@ export default defineConfig({
       formats: ["es"]
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", "react-to-print", "pdfjs-dist"],
+      external: ["react", "react-dom", "react/jsx-runtime", "react-to-print", "pdfjs-dist", "pdf-lib"],
     }
   }
 });
