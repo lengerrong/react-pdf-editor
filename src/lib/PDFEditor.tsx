@@ -1,3 +1,5 @@
+import "./PDFEditor.module.css";
+
 import {
   forwardRef,
   useCallback,
@@ -75,6 +77,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>((props, ref) =
   const [maxPageWidth, setMaxPageWidth] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(6);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy>();
+  const [docReady, setDocReady] = useState(false);
   const [pages, setPages] = useState<PDFPageAndFormFields[]>();
 
   useEffect(() => {
@@ -85,12 +88,14 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>((props, ref) =
   useEffect(() => {
     const loadDocument = async () => {
       setPdfDoc(await getDocument(src).promise);
+      setDocReady(true);
     };
     loadDocument();
     return () => {
       if (pdfDoc) {
         pdfDoc.destroy();
         setPdfDoc(undefined);
+        setDocReady(false);
       }
     };
     // since getDocument is async api
@@ -123,7 +128,9 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>((props, ref) =
       }
     };
     loadFormFieldsAndPages();
-  }, [pdfDoc]);
+    // intend not include pdfDoc, since it is a proxy
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docReady]);
 
   const renderPages = useCallback(
     (scale: number) => {
@@ -204,7 +211,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>((props, ref) =
 
   useEffect(() => {
     renderPages(zoomLevels[zoomLevel]);
-  }, [pages, zoomLevel, renderPages]);
+  }, [pages, renderPages, zoomLevel]);
 
   // re-calculate view scale level on window resize event.
   const resetViewScale = useCallback(
@@ -264,32 +271,35 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>((props, ref) =
     <div className="relative flex h-full max-h-[100rem] w-full flex-col overflow-auto">
       <div className="bg-pdf-toolbar pure-white sticky top-0 flex h-10 w-full items-center justify-center px-4">
         <button
-          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 items-center justify-center border-0 px-0"
+          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
           title="Zoom Out"
           onClick={() => setZoomLevel(zoomLevel - 1)}
           disabled={zoomLevel <= 0}
+          type="button"
         >
           <ZoomOutIcon className={"h-4 w-4 cursor-pointer"} />
         </button>
         <button
           title="Zoom In"
-          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 items-center justify-center border-0 px-0"
+          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
           onClick={() => setZoomLevel(zoomLevel + 1)}
           disabled={zoomLevel >= zoomLevels.length - 1}
+          type="button"
         >
           <ZoomInIcon className={"h-4 w-4 cursor-pointer"} />
         </button>
         <button
           title="Print"
-          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 items-center justify-center border-0 px-0"
+          className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
           onClick={onPrint}
+          type="button"
         >
           <PrintIcon className={"h-5 w-5 cursor-pointer"} />
         </button>
       </div>
       <div
         ref={divRef}
-        className="bg-pdf-content flex flex-col items-center overflow-auto px-4 pt-2"
+        className="bg-pdf-content flex flex-col items-center overflow-auto px-4 py-2"
       >
         {pages &&
           pages.length > 0 &&
