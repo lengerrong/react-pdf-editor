@@ -1,4 +1,4 @@
-import "./PDFEditor.module.css";
+import styles from "./PDFEditor.module.css";
 
 import {
   forwardRef,
@@ -107,6 +107,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
     const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy>();
     const [docReady, setDocReady] = useState(false);
     const [pages, setPages] = useState<PDFPageAndFormFields[]>();
+    const [pagesReady, setPagesReady] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -116,6 +117,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
 
     useEffect(() => {
       const loadDocument = async () => {
+        setDocReady(false);
         setPdfDoc(await getDocument(src).promise);
         setDocReady(true);
       };
@@ -139,6 +141,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
           const rawFormFields =
             (await pdfDoc.getFieldObjects()) as PDFFormRawFields;
           const rawPages: PDFPageAndFormFields[] = [];
+          setPagesReady(false);
           for (let i = 1; i <= pdfDoc?.numPages; i++) {
             const proxy = await pdfDoc.getPage(i);
             const fields = Object.values(rawFormFields).flatMap((rawFields) =>
@@ -154,6 +157,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
             rawPages.push({ proxy, fields });
           }
           setPages(rawPages);
+          setPagesReady(true);
         }
       };
       loadFormFieldsAndPages();
@@ -240,8 +244,10 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
     );
 
     useEffect(() => {
-      renderPages(zoomLevels[zoomLevel]);
-    }, [pages, renderPages, zoomLevel]);
+      if (pagesReady) {
+        renderPages(zoomLevels[zoomLevel]);
+      }
+    }, [pagesReady, renderPages, zoomLevel]);
 
     // re-calculate view scale level on window resize event.
     const resetViewScale = useCallback(
@@ -304,6 +310,10 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
 
     // use react-print for the pdf print
     const onPrint = usePrint(divRef);
+
+    const onPrintClicked = () => {
+      onPrint();
+    }
 
     const downloadPDF = (data: Blob, fileName: string) => {
       // Create a temporary anchor element
@@ -411,48 +421,51 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
       setIsSaving(false);
     }
 
+    if (!docReady || !pagesReady)
+      return null;
+    
     return (
-      <div className="relative flex h-full max-h-[100rem] w-full flex-col overflow-auto">
-        <div className="bg-pdf-toolbar pure-white sticky top-0 flex h-10 w-full items-center justify-center px-4">
+      <div className={styles.rootContainer}>
+        <div className={styles.toolbarContainer}>  
           <button
-            className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
+            className={styles.toolbarButton}
             title="Zoom Out"
             onClick={() => setZoomLevel(zoomLevel - 1)}
             disabled={zoomLevel <= 0}
             type="button"
           >
-            <ZoomOutIcon className={"h-4 w-4 cursor-pointer"} />
+            <ZoomOutIcon className={styles.svgIcon} />
           </button>
           <button
             title="Zoom In"
-            className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
+            className={styles.toolbarButton}
             onClick={() => setZoomLevel(zoomLevel + 1)}
             disabled={zoomLevel >= zoomLevels.length - 1}
             type="button"
           >
-            <ZoomInIcon className={"h-4 w-4 cursor-pointer"} />
+            <ZoomInIcon className={styles.svgIcon} />
           </button>
           <button
             title="Print"
-            className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
-            onClick={onPrint}
+            className={styles.toolbarButton}
+            onClick={onPrintClicked}
             type="button"
           >
-            <PrintIcon className={"h-5 w-5 cursor-pointer"} />
+            <PrintIcon className={styles.svgMediumIcon} />
           </button>
           <button
             title="Save as"
-            className="bg-pdf-toolbar hover:bg-pdf-button my-2 h-8 w-9 flex items-center justify-center border-0 px-0"
+            className={styles.toolbarButton}
             onClick={onSaveAs}
             type="button"
             disabled={isSaving}
           >
-            <SaveAsIcon className={"h-5 w-5 cursor-pointer"} />
+            <SaveAsIcon className={styles.svgMediumIcon} />
           </button>
         </div>
         <div
           ref={divRef}
-          className="bg-pdf-content flex flex-col items-center overflow-auto px-4 py-2"
+          className={styles.pdfContainer}
         >
           {pages &&
             pages.length > 0 &&
@@ -462,7 +475,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
                 <div
                   id={"page_div_container_" + page.proxy.pageNumber}
                   key={"page_" + page.proxy.pageNumber}
-                  className="relative"
+                  className={styles.pdfPageContainer}
                 >
                   <canvas id={"page_canvas_" + page.proxy.pageNumber} />
                   {page.fields &&
@@ -474,7 +487,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
                             title={field.name}
                             key={field.name}
                             defaultValue={field.defaultValue}
-                            className="text-75 bg-pdf-input focus:bg-pure-white absolute border-x-0 border-t-0 border-b focus:border-2 focus:border-dotted"
+                            className={styles.pdfSelect}
                           >
                             {field.items?.map((item) => (
                               <option
@@ -492,7 +505,7 @@ export const PDFEditor = forwardRef<PDFEditorRef, PDFEditorProps>(
                           defaultValue={field.defaultValue}
                           name={field.name}
                           key={field.name}
-                          className="bg-pdf-input focus:bg-pure-white absolute border-x-0 border-t-0 border-b focus:border-2 focus:border-dotted"
+                          className={styles.pdfInput}
                         />
                       );
                     })}
