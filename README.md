@@ -40,6 +40,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 ```
 
+## Live Demo
+
+[react-pdf-editor Demo](https://react-pdf-editor-lengerrong.vercel.app)
+
 ## Props
 
 | Prop | Type | Comments |
